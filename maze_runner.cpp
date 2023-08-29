@@ -68,7 +68,6 @@ void maze_print() {
     }
     usleep(40000);
 }
-
 bool walk(pos_t start_pos) {
     valid_positions.push(start_pos);
 
