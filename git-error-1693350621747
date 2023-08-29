@@ -1,5 +1,5 @@
 > git pull --tags origin main
-From https://github.com/Luc7sUFMG/maze_runner.cpp
+From https://github.com/Luc7sUFMG/maze_runner
  * branch            main       -> FETCH_HEAD
 hint: You have divergent branches and need to specify how to reconcile them.
 hint: You can do so by running one of the following commands sometime before
