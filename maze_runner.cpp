@@ -3,6 +3,10 @@
 #include <vector>
 #include <stack>
 #include <chrono>
+#include <thread>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -50,62 +54,69 @@ pos_t load_maze(const char* file_name) {
     file.close();
     return initial_pos;
 }
-// Função que imprime o labirinto com um atraso de 0.5 segundos
-void print_maze(const pos_t& current_pos) {
-    system("cls"); // Limpar a tela (funciona em sistemas Windows)
+
+void maze_print() {
     for (int i = 0; i < num_rows; ++i) {
         for (int j = 0; j < num_cols; ++j) {
-            if (i == current_pos.i && j == current_pos.j) {
-                std::cout << 'o'; // Posição corrente
+            if (maze[i][j] == '.') {
+                printf(".");
             } else {
-                std::cout << maze[i][j];
+                printf("%c", maze[i][j]);
             }
         }
-        std::cout << std::endl;
+        printf("\n");
     }
-
-#ifdef _WIN32
-    Sleep(500); // Atraso de 0.5 segundos (Windows)
-#else
-    std::this_thread::sleep_for(std::chrono::milliseconds(500)); // Atraso de 0.5 segundos (outros sistemas)
-#endif
+    usleep(40000);
 }
 
-// Função responsável pela navegação.
-// Recebe como entrada a posição inicial e retorna um booleano indicando se a saída foi encontrada
-bool walk(pos_t pos) {
-    valid_positions.push(pos);
+bool walk(pos_t start_pos) {
+    valid_positions.push(start_pos);
 
     while (!valid_positions.empty()) {
-        pos = valid_positions.top();
+        pos_t pos = valid_positions.top();
         valid_positions.pop();
-
-        // Marcar a posição atual como explorada
+        
+        if (maze[pos.i][pos.j] == '.') {
+            continue;
+        }
+        
         maze[pos.i][pos.j] = '.';
 
-        print_maze(pos);
+        system("clear");
 
-        // Verificar se a saída foi encontrada
-        if (maze[pos.i][pos.j] == 's') {
-            return true;
-        }
+        maze_print();
 
-        // Verificar as próximas posições válidas e adicioná-las à pilha
-        if (pos.i > 0 && maze[pos.i - 1][pos.j] == 'x') {
+        if (pos.i > 0 && (maze[pos.i - 1][pos.j] == 'x' || maze[pos.i - 1][pos.j] == 's')) {
+            if (maze[pos.i - 1][pos.j] == 's') {
+                return true; // Saída encontrada
+            }
             valid_positions.push({pos.i - 1, pos.j});
         }
-        if (pos.i < num_rows - 1 && maze[pos.i + 1][pos.j] == 'x') {
+
+        if (pos.i < num_rows - 1 && (maze[pos.i + 1][pos.j] == 'x' || maze[pos.i + 1][pos.j] == 's')) {
+            if (maze[pos.i + 1][pos.j] == 's') {
+                return true; // Saída encontrada
+            }
             valid_positions.push({pos.i + 1, pos.j});
         }
-        if (pos.j > 0 && maze[pos.i][pos.j - 1] == 'x') {
+
+        if (pos.j > 0 && (maze[pos.i][pos.j - 1] == 'x' || maze[pos.i][pos.j - 1] == 's')) {
+            if (maze[pos.i][pos.j - 1] == 's') {
+                return true; // Saída encontrada
+            }
             valid_positions.push({pos.i, pos.j - 1});
         }
-        if (pos.j < num_cols - 1 && maze[pos.i][pos.j + 1] == 'x') {
+
+        if (pos.j < num_cols - 1 && (maze[pos.i][pos.j + 1] == 'x' || maze[pos.i][pos.j + 1] == 's')) {
+            if (maze[pos.i][pos.j + 1] == 's') {
+                return true; // Saída encontrada
+            }
             valid_positions.push({pos.i, pos.j + 1});
         }
     }
 
-    return false; // Saída não encontrada
+    std::cout << "Não foi possível encontrar a saída." << std::endl;
+    return false;
 }
 
 int main(int argc, char* argv[]) {
@@ -115,12 +126,18 @@ int main(int argc, char* argv[]) {
     }
 
     pos_t initial_pos = load_maze(argv[1]);
-    bool exit_found = walk(initial_pos);
+    
+    // Iniciar o percurso apenas se a posição inicial for marcada como "e"
+    if (maze[initial_pos.i][initial_pos.j] == 'e') {
+        bool exit_found = walk(initial_pos);
 
-    if (exit_found) {
-        std::cout << "Saída encontrada!" << std::endl;
+        if (exit_found) {
+            std::cout << "Saída encontrada!" << std::endl;
+        } else {
+            std::cout << "Não foi possível encontrar a saída." << std::endl;
+        }
     } else {
-        std::cout << "Não foi possível encontrar a saída." << std::endl;
+        std::cout << "Posição inicial inválida. Deve ser marcada com 'e'." << std::endl;
     }
 
     return 0;
