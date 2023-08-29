@@ -118,7 +118,6 @@ bool walk(pos_t start_pos) {
     std::cout << "Não foi possível encontrar a saída." << std::endl;
     return false;
 }
-
 int main(int argc, char* argv[]) {
     if (argc != 2) {
         std::cerr << "Uso: " << argv[0] << " <nome_do_arquivo_labirinto>" << std::endl;
