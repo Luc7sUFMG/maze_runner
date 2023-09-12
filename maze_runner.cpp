@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <mutex> // Para usar mutex
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -27,6 +28,10 @@ struct pos_t {
 // Estrutura de dados contendo as próximas
 // posições a serem exploradas no labirinto
 std::stack<pos_t> valid_positions;
+
+// Variável para indicar se a saída foi encontrada
+bool exit_found = false;
+std::mutex exit_mutex; // Mutex para proteger o acesso à variável exit_found
 
 // Função que lê o labirinto de um arquivo texto, carrega em 
 // memória e retorna a posição inicial
@@ -68,10 +73,11 @@ void maze_print() {
     }
     usleep(40000);
 }
+
 bool walk(pos_t start_pos) {
     valid_positions.push(start_pos);
 
-    while (!valid_positions.empty()) {
+    while (!valid_positions.empty() && !exit_found) { // Continue apenas se a saída não foi encontrada
         pos_t pos = valid_positions.top();
         valid_positions.pop();
         
@@ -82,41 +88,64 @@ bool walk(pos_t start_pos) {
         maze[pos.i][pos.j] = '.';
 
         system("clear");
-
         maze_print();
+
+        std::vector<std::thread> threads; // Armazena as threads para caminhos alternativos
 
         if (pos.i > 0 && (maze[pos.i - 1][pos.j] == 'x' || maze[pos.i - 1][pos.j] == 's')) {
             if (maze[pos.i - 1][pos.j] == 's') {
-                return true; // Saída encontrada
+                // Saída encontrada, defina a variável exit_found dentro do mutex
+                std::lock_guard<std::mutex> lock(exit_mutex);
+                exit_found = true;
+                return true; // Saia da função
             }
-            valid_positions.push({pos.i - 1, pos.j});
+            threads.emplace_back(walk, pos_t{pos.i - 1, pos.j}); // Cria uma nova thread para explorar este caminho
         }
 
         if (pos.i < num_rows - 1 && (maze[pos.i + 1][pos.j] == 'x' || maze[pos.i + 1][pos.j] == 's')) {
             if (maze[pos.i + 1][pos.j] == 's') {
-                return true; // Saída encontrada
+                // Saída encontrada, defina a variável exit_found dentro do mutex
+                std::lock_guard<std::mutex> lock(exit_mutex);
+                exit_found = true;
+                return true; // Saia da função
             }
-            valid_positions.push({pos.i + 1, pos.j});
+            threads.emplace_back(walk, pos_t{pos.i + 1, pos.j}); // Cria uma nova thread para explorar este caminho
         }
 
         if (pos.j > 0 && (maze[pos.i][pos.j - 1] == 'x' || maze[pos.i][pos.j - 1] == 's')) {
             if (maze[pos.i][pos.j - 1] == 's') {
-                return true; // Saída encontrada
+                // Saída encontrada, defina a variável exit_found dentro do mutex
+                std::lock_guard<std::mutex> lock(exit_mutex);
+                exit_found = true;
+                return true; // Saia da função
             }
-            valid_positions.push({pos.i, pos.j - 1});
+            threads.emplace_back(walk, pos_t{pos.i, pos.j - 1}); // Cria uma nova thread para explorar este caminho
         }
 
         if (pos.j < num_cols - 1 && (maze[pos.i][pos.j + 1] == 'x' || maze[pos.i][pos.j + 1] == 's')) {
             if (maze[pos.i][pos.j + 1] == 's') {
-                return true; // Saída encontrada
+                // Saída encontrada, defina a variável exit_found dentro do mutex
+                std::lock_guard<std::mutex> lock(exit_mutex);
+                exit_found = true;
+                return true; // Saia da função
             }
-            valid_positions.push({pos.i, pos.j + 1});
+            threads.emplace_back(walk, pos_t{pos.i, pos.j + 1}); // Cria uma nova thread para explorar este caminho
+        }
+
+        // Aguarde até que todas as threads terminem antes de continuar
+        for (std::thread& t : threads) {
+            t.join();
         }
     }
 
-    std::cout << "Não foi possível encontrar a saída." << std::endl;
-    return false;
+    if (exit_found) {
+        return true;
+    } else {
+        std::cout << "Não foi possível encontrar a saída." << std::endl;
+        return false;
+    }
 }
+
 int main(int argc, char* argv[]) {
     if (argc != 2) {
         std::cerr << "Uso: " << argv[0] << " <nome_do_arquivo_labirinto>" << std::endl;
@@ -131,8 +160,6 @@ int main(int argc, char* argv[]) {
 
         if (exit_found) {
             std::cout << "Saída encontrada!" << std::endl;
-        } else {
-            std::cout << "Não foi possível encontrar a saída." << std::endl;
         }
     } else {
         std::cout << "Posição inicial inválida. Deve ser marcada com 'e'." << std::endl;
